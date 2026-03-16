@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LibraryOS — Admin Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0C0E14;
+    --bg2: #13161F;
+    --bg3: #1A1E2A;
+    --surface: #1F2535;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --accent: #6EE7B7;
+    --accent2: #3B82F6;
+    --accent3: #F59E0B;
+    --accent4: #EF4444;
+    --text: #E8ECF4;
+    --text2: #8B92A5;
+    --text3: #4F5668;
+    --sidebar-w: 240px;
+    --radius: 10px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+
+  #login-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; transition: opacity 0.5s, transform 0.5s;
+  }
+  #login-screen.hidden { opacity: 0; pointer-events: none; transform: scale(1.03); }
+  .login-grid {
+    display: grid; grid-template-columns: 1fr 1fr; width: 860px; max-width: 95vw;
+    min-height: 500px; border-radius: 20px; overflow: hidden;
+    border: 1px solid var(--border2); background: var(--bg2);
+  }
+  .login-art {
+    background: linear-gradient(135deg, #0f1923 0%, #1a2a1a 50%, #0e1220 100%);
+    padding: 48px; display: flex; flex-direction: column; justify-content: space-between;
+    position: relative; overflow: hidden;
+  }
+  .login-art::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 30% 70%, rgba(110,231,183,0.12) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(59,130,246,0.1) 0%, transparent 55%);
+  }
+  .art-grid {
+    position: absolute; inset: 0; opacity: 0.06;
+    background-image: linear-gradient(var(--border2) 1px, transparent 1px),
+                      linear-gradient(90deg, var(--border2) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .art-logo { position: relative; z-index: 1; }
+  .art-logo .icon {
+    width: 44px; height: 44px; background: var(--accent); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
+  }
+  .art-logo .icon svg { width: 22px; height: 22px; fill: #0C0E14; }
+  .art-logo h1 { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; color: var(--text); }
+  .art-logo p { font-size: 13px; color: var(--text3); margin-top: 4px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .art-stat { position: relative; z-index: 1; }
+  .art-stat-num { font-family: 'Syne', sans-serif; font-size: 52px; font-weight: 800; color: var(--accent); line-height: 1; }
+  .art-stat-label { font-size: 13px; color: var(--text2); margin-top: 6px; }
+  .login-form-wrap {
+    padding: 48px 44px; display: flex; flex-direction: column; justify-content: center;
+  }
+  .login-form-wrap h2 { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .login-form-wrap p { font-size: 14px; color: var(--text2); margin-bottom: 32px; }
+  .field { margin-bottom: 18px; }
+  .field label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 8px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .field input {
+    width: 100%; padding: 11px 14px; background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: var(--radius); color: var(--text); font-family: 'DM Mono', monospace; font-size: 14px;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(110,231,183,0.1); }
+  .field input::placeholder { color: var(--text3); }
+  .error-msg { font-size: 12px; color: var(--accent4); margin-top: -10px; margin-bottom: 12px; display: none; }
+  .btn-login {
+    width: 100%; padding: 13px; background: var(--accent); color: #0C0E14;
+    font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; border: none;
+    border-radius: var(--radius); cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+    margin-top: 8px;
+  }
+  .btn-login:hover { opacity: 0.9; }
+  .btn-login:active { transform: scale(0.98); }
+  .login-hint { font-size: 12px; color: var(--text3); text-align: center; margin-top: 14px; }
+  .login-hint span { color: var(--text2); font-family: 'DM Mono', monospace; }
+
+  #app { display: none; height: 100vh; }
+  #app.visible { display: flex; }
+
+  .sidebar {
+    width: var(--sidebar-w); flex-shrink: 0; background: var(--bg2);
+    border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .sidebar-logo {
+    padding: 22px 20px 18px; display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo .icon {
+    width: 34px; height: 34px; background: var(--accent); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .sidebar-logo .icon svg { width: 16px; height: 16px; fill: #0C0E14; }
+  .sidebar-logo span { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; color: var(--text); }
+  .sidebar-logo small { font-size: 10px; color: var(--text3); display: block; font-family: 'DM Mono', monospace; }
+  .nav-section { padding: 16px 12px 8px; }
+  .nav-label { font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; padding: 0 8px; margin-bottom: 6px; font-weight: 500; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px;
+    cursor: pointer; transition: background 0.15s, color 0.15s; color: var(--text2);
+    font-size: 14px; margin-bottom: 2px; position: relative;
+  }
+  .nav-item:hover { background: var(--surface); color: var(--text); }
+  .nav-item.active { background: rgba(110,231,183,0.1); color: var(--accent); }
+  .nav-item.active::before {
+    content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    width: 3px; height: 18px; background: var(--accent); border-radius: 0 3px 3px 0;
+  }
+  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .nav-item.active span { font-weight: 500; }
+  .sidebar-bottom { margin-top: auto; padding: 12px; border-top: 1px solid var(--border); }
+  .nav-logout { color: var(--accent4); }
+  .nav-logout:hover { background: rgba(239,68,68,0.08); color: var(--accent4); }
+
+  .main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  .topbar {
+    height: 58px; border-bottom: 1px solid var(--border); display: flex; align-items: center;
+    padding: 0 28px; gap: 16px; background: var(--bg2); flex-shrink: 0;
+  }
+  .topbar-title { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 700; color: var(--text); flex: 1; }
+  .topbar-badge {
+    padding: 4px 12px; background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: 20px; font-size: 12px; color: var(--text2); font-family: 'DM Mono', monospace;
+  }
+  .topbar-avatar {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800; color: #0C0E14;
+  }
+  .content { flex: 1; overflow-y: auto; padding: 28px; background: var(--bg); }
+
+  .page { display: none; animation: fadeUp 0.3s ease; }
+  .page.active { display: block; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px; position: relative; overflow: hidden;
+  }
+  .stat-card::after {
+    content: ''; position: absolute; top: 0; right: 0; width: 80px; height: 80px;
+    border-radius: 50%; background: var(--glow, rgba(110,231,183,0.04)); transform: translate(20px, -20px);
+  }
+  .stat-label { font-size: 11px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; font-weight: 500; }
+  .stat-value { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; color: var(--stat-color, var(--text)); line-height: 1; }
+  .stat-sub { font-size: 12px; color: var(--text3); margin-top: 6px; }
+
+  .table-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .table-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .table-header h3 { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: 11px 20px; text-align: left; font-size: 11px; color: var(--text3);
+    letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500;
+    background: var(--bg3); border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  td { padding: 13px 20px; font-size: 14px; color: var(--text); }
+  td.mono { font-family: 'DM Mono', monospace; font-size: 13px; }
+  .badge-pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; font-family: 'DM Mono', monospace; }
+  .pill-green { background: rgba(110,231,183,0.12); color: var(--accent); }
+  .pill-red { background: rgba(239,68,68,0.12); color: var(--accent4); }
+  .pill-amber { background: rgba(245,158,11,0.12); color: var(--accent3); }
+  .pill-blue { background: rgba(59,130,246,0.12); color: var(--accent2); }
+
+  .form-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 28px; max-width: 520px; }
+  .form-card h3 { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .form-card p { font-size: 13px; color: var(--text2); margin-bottom: 24px; }
+  .form-field { margin-bottom: 16px; }
+  .form-field label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 7px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .form-field input, .form-field select {
+    width: 100%; padding: 11px 14px; background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: var(--radius); color: var(--text); font-size: 14px; font-family: 'DM Sans', sans-serif;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s; appearance: none;
+  }
+  .form-field input:focus, .form-field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(110,231,183,0.1); }
+  .form-field input::placeholder { color: var(--text3); }
+  .form-field select option { background: var(--bg3); }
+  .btn { padding: 11px 22px; border-radius: var(--radius); font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: #0C0E14; }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-blue { background: rgba(59,130,246,0.12); color: var(--accent2); border: 1px solid rgba(59,130,246,0.2); }
+  .btn-blue:hover { background: rgba(59,130,246,0.2); }
+
+  #toast {
+    position: fixed; bottom: 28px; right: 28px; z-index: 999;
+    background: var(--surface); border: 1px solid var(--border2); border-radius: 10px;
+    padding: 13px 18px; font-size: 14px; color: var(--text);
+    display: flex; align-items: center; gap: 10px;
+    transform: translateY(20px); opacity: 0; transition: all 0.3s;
+    pointer-events: none; max-width: 320px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .alert { padding: 13px 16px; border-radius: var(--radius); font-size: 14px; margin-top: 16px; display: none; align-items: center; gap: 10px; }
+  .alert.show { display: flex; }
+  .alert-success { background: rgba(110,231,183,0.08); border: 1px solid rgba(110,231,183,0.2); color: var(--accent); }
+  .alert-error { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: var(--accent4); }
+
+  .page-heading { margin-bottom: 22px; }
+  .page-heading h2 { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; color: var(--text); }
+  .page-heading p { font-size: 14px; color: var(--text2); margin-top: 4px; }
+
+  .reports-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .report-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 14px; padding: 24px; display: flex; align-items: center; gap: 18px; }
+  .report-icon { width: 52px; height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .report-icon svg { width: 24px; height: 24px; }
+  .report-data .label { font-size: 12px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; font-weight: 500; }
+  .report-data .value { font-family: 'Syne', sans-serif; font-size: 36px; font-weight: 800; line-height: 1; }
+
+  tr.out-of-stock td { color: var(--text3); }
+  tr.out-of-stock { background: rgba(239,68,68,0.03); }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  @media (max-width: 700px) {
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .reports-grid { grid-template-columns: 1fr; }
+    .login-grid { grid-template-columns: 1fr; }
+    .login-art { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-grid">
+    <div class="login-art">
+      <div class="art-grid"></div>
+      <div class="art-logo">
+        <div class="icon">
+          <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15zm2.5-2.5H18v1H6.5a.5.5 0 0 1 0-1zM6 4.5A.5.5 0 0 1 6.5 4H18v11H6.5A2.48 2.48 0 0 0 5 15.84V4.5A.5.5 0 0 1 6 4.5z"/></svg>
+        </div>
+        <h1>LibraryOS</h1>
+        <p>Management Console</p>
+      </div>
+      <div class="art-stat">
+        <div class="art-stat-num" id="art-count">7</div>
+        <div class="art-stat-label">Books in collection</div>
+      </div>
+    </div>
+    <div class="login-form-wrap">
+      <h2>Welcome back</h2>
+      <p>Sign in to access the admin panel</p>
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="login-user" placeholder="admin" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="login-pass" placeholder="••••••••">
+      </div>
+      <div class="error-msg" id="login-error">Invalid username or password.</div>
+      <button class="btn-login" onclick="doLogin()">Sign In</button>
+      <p class="login-hint">Use <span>admin</span> / <span>admin123</span> to continue</p>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="icon">
+        <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15zm2.5-2.5H18v1H6.5a.5.5 0 0 1 0-1zM6 4.5A.5.5 0 0 1 6.5 4H18v11H6.5A2.48 2.48 0 0 0 5 15.84V4.5A.5.5 0 0 1 6 4.5z"/></svg>
+      </div>
+      <div><span>LibraryOS</span><small>v2.1.0</small></div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Overview</div>
+      <div class="nav-item active" data-page="dashboard" onclick="nav(this,'dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span>Dashboard</span>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Catalog</div>
+      <div class="nav-item" data-page="books" onclick="nav(this,'books')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span>Books</span>
+      </div>
+      <div class="nav-item" data-page="addbook" onclick="nav(this,'addbook')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span>Add Book</span>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Circulation</div>
+      <div class="nav-item" data-page="issue" onclick="nav(this,'issue')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Issue Book</span>
+      </div>
+      <div class="nav-item" data-page="return" onclick="nav(this,'return')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Return Book</span>
+      </div>
+      <div class="nav-item" data-page="reports" onclick="nav(this,'reports')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Reports</span>
+      </div>
+    </div>
+    <div class="sidebar-bottom">
+      <div class="nav-item nav-logout" onclick="doLogout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span>Logout</span>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Dashboard</div>
+      <div class="topbar-badge" id="topbar-date"></div>
+      <div class="topbar-avatar">A</div>
+    </div>
+    <div class="content">
+
+      <!-- Dashboard -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-heading"><h2>Overview</h2><p>System summary at a glance</p></div>
+        <div class="stats-row">
+          <div class="stat-card" style="--glow:rgba(110,231,183,0.08);">
+            <div class="stat-label">Total Books</div>
+            <div class="stat-value" style="--stat-color:var(--accent)" id="stat-total">0</div>
+            <div class="stat-sub">Unique titles</div>
+          </div>
+          <div class="stat-card" style="--glow:rgba(59,130,246,0.08);">
+            <div class="stat-label">Copies Available</div>
+            <div class="stat-value" style="--stat-color:var(--accent2)" id="stat-avail">0</div>
+            <div class="stat-sub">Ready to borrow</div>
+          </div>
+          <div class="stat-card" style="--glow:rgba(245,158,11,0.08);">
+            <div class="stat-label">Issued</div>
+            <div class="stat-value" style="--stat-color:var(--accent3)" id="stat-issued">0</div>
+            <div class="stat-sub">Currently out</div>
+          </div>
+          <div class="stat-card" style="--glow:rgba(239,68,68,0.08);">
+            <div class="stat-label">Out of Stock</div>
+            <div class="stat-value" style="--stat-color:var(--accent4)" id="stat-oos">0</div>
+            <div class="stat-sub">Zero copies left</div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header"><h3>Collection</h3></div>
+          <table id="dash-table">
+            <thead><tr><th>Book Name</th><th>Author</th><th>Category</th><th>Copies</th><th>Status</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Books -->
+      <div class="page" id="page-books">
+        <div class="page-heading"><h2>All Books</h2><p>Full catalog with availability</p></div>
+        <div class="table-card">
+          <div class="table-header"><h3>Catalog</h3></div>
+          <table id="books-table">
+            <thead><tr><th>#</th><th>Book Name</th><th>Author</th><th>Category</th><th>Copies</th><th>Status</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Add Book -->
+      <div class="page" id="page-addbook">
+        <div class="page-heading"><h2>Add Book</h2><p>Register a new title to the collection</p></div>
+        <div class="form-card">
+          <h3>New Book Entry</h3>
+          <p>Fill in the details below to add to the catalog</p>
+          <div class="form-field"><label>Book Name</label><input type="text" id="add-name" placeholder="e.g. Operating Systems"></div>
+          <div class="form-field"><label>Author</label><input type="text" id="add-author" placeholder="e.g. Silberschatz"></div>
+          <div class="form-field"><label>Category</label>
+            <select id="add-cat">
+              <option value="Computer Science">Computer Science</option>
+              <option value="Mathematics">Mathematics</option>
+              <option value="Physics">Physics</option>
+              <option value="Literature">Literature</option>
+              <option value="History">History</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-field"><label>Number of Copies</label><input type="number" id="add-copies" placeholder="e.g. 3" min="1"></div>
+          <button class="btn btn-primary" onclick="addBook()">Add to Catalog</button>
+          <div class="alert alert-success" id="add-alert">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Book added successfully!
+          </div>
+        </div>
+      </div>
+
+      <!-- Issue Book -->
+      <div class="page" id="page-issue">
+        <div class="page-heading"><h2>Issue Book</h2><p>Check out a book to a reader</p></div>
+        <div class="form-card">
+          <h3>Issue a Copy</h3>
+          <p>Select a book and confirm issue. Copies decrease by 1.</p>
+          <div class="form-field"><label>Select Book</label><select id="issue-select"></select></div>
+          <div class="form-field"><label>Borrower Name</label><input type="text" id="issue-borrower" placeholder="e.g. Arjun Sharma"></div>
+          <button class="btn btn-primary" onclick="issueBook()">Issue Book</button>
+          <div class="alert alert-success" id="issue-alert-ok">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span id="issue-ok-msg"></span>
+          </div>
+          <div class="alert alert-error" id="issue-alert-err">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Book is Out of Stock — no copies available.
+          </div>
+        </div>
+      </div>
+
+      <!-- Return Book -->
+      <div class="page" id="page-return">
+        <div class="page-heading"><h2>Return Book</h2><p>Accept a returned copy</p></div>
+        <div class="form-card">
+          <h3>Process Return</h3>
+          <p>Select the returned book. Copies increase by 1.</p>
+          <div class="form-field"><label>Select Book</label><select id="return-select"></select></div>
+          <div class="form-field"><label>Borrower Name</label><input type="text" id="return-borrower" placeholder="e.g. Arjun Sharma"></div>
+          <button class="btn btn-blue" onclick="returnBook()">Return Book</button>
+          <div class="alert alert-success" id="return-alert">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span id="return-ok-msg"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reports -->
+      <div class="page" id="page-reports">
+        <div class="page-heading"><h2>Reports</h2><p>Collection analytics</p></div>
+        <div class="reports-grid">
+          <div class="report-card">
+            <div class="report-icon" style="background:rgba(110,231,183,0.1);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#6EE7B7" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </div>
+            <div class="report-data"><div class="label">Total Books</div><div class="value" style="color:var(--accent)" id="rep-total">0</div></div>
+          </div>
+          <div class="report-card">
+            <div class="report-icon" style="background:rgba(59,130,246,0.1);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div class="report-data"><div class="label">Available Copies</div><div class="value" style="color:var(--accent2)" id="rep-avail">0</div></div>
+          </div>
+          <div class="report-card">
+            <div class="report-icon" style="background:rgba(245,158,11,0.1);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="report-data"><div class="label">Issued Copies</div><div class="value" style="color:var(--accent3)" id="rep-issued">0</div></div>
+          </div>
+          <div class="report-card">
+            <div class="report-icon" style="background:rgba(239,68,68,0.1);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <div class="report-data"><div class="label">Out of Stock</div><div class="value" style="color:var(--accent4)" id="rep-oos">0</div></div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header"><h3>Book-wise Breakdown</h3></div>
+          <table id="rep-table">
+            <thead><tr><th>Book Name</th><th>Author</th><th>Total Copies</th><th>Available</th><th>Issued</th><th>Status</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toast"><div class="dot" id="toast-dot"></div><span id="toast-msg"></span></div>
+
+<script>
+let books = [
+  { id:1, name:'DBMS', author:'Korth', category:'Computer Science', total:3, copies:3, issued:0 },
+  { id:2, name:'Operating Systems', author:'Silberschatz', category:'Computer Science', total:2, copies:2, issued:0 },
+  { id:3, name:'Computer Networks', author:'Tanenbaum', category:'Computer Science', total:0, copies:0, issued:4 },
+  { id:4, name:'Data Structures', author:'Cormen', category:'Computer Science', total:5, copies:4, issued:1 },
+  { id:5, name:'Discrete Mathematics', author:'Rosen', category:'Mathematics', total:3, copies:3, issued:0 },
+  { id:6, name:'Engineering Physics', author:'Gaur & Gupta', category:'Physics', total:4, copies:2, issued:2 },
+  { id:7, name:'Digital Electronics', author:'Floyd', category:'Computer Science', total:2, copies:1, issued:1 },
+];
+let nextId = 8;
+
+function doLogin() {
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value.trim();
+  const err = document.getElementById('login-error');
+  if (u === 'admin' && p === 'admin123') {
+    err.style.display = 'none';
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('app').classList.add('visible');
+    renderAll(); setDate();
+  } else {
+    err.style.display = 'block';
+    document.getElementById('login-pass').value = '';
+  }
+}
+function doLogout() {
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('login-screen').classList.contains('hidden')) doLogin();
+});
+
+const titles = { dashboard:'Dashboard', books:'Books', addbook:'Add Book', issue:'Issue Book', return:'Return Book', reports:'Reports' };
+function nav(el, page) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.getElementById('topbar-title').textContent = titles[page];
+  if (page === 'issue') populateSelect('issue-select');
+  if (page === 'return') populateSelect('return-select');
+  if (page === 'reports') renderReports();
+  clearAlerts();
+}
+
+function setDate() {
+  document.getElementById('topbar-date').textContent = new Date().toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+}
+function clearAlerts() {
+  document.querySelectorAll('.alert').forEach(a => a.classList.remove('show'));
+}
+function toast(msg, color) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  document.getElementById('toast-dot').style.background = color || 'var(--accent)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function calcStats() {
+  return {
+    total: books.length,
+    avail: books.reduce((s,b) => s + b.copies, 0),
+    issued: books.reduce((s,b) => s + b.issued, 0),
+    oos: books.filter(b => b.copies === 0).length
+  };
+}
+function renderAll() {
+  const s = calcStats();
+  ['total','avail','issued','oos'].forEach(k => {
+    const el = document.getElementById('stat-'+k);
+    if (el) el.textContent = s[k];
+  });
+  document.getElementById('art-count').textContent = books.length;
+  renderTable('dash-table', false);
+  renderTable('books-table', true);
+}
+
+function statusPill(copies) {
+  if (copies === 0) return '<span class="badge-pill pill-red">Out of Stock</span>';
+  if (copies <= 1) return '<span class="badge-pill pill-amber">Low Stock</span>';
+  return '<span class="badge-pill pill-green">Available</span>';
+}
+function renderTable(id, numbered) {
+  const t = document.getElementById(id);
+  if (!t) return;
+  t.querySelector('tbody').innerHTML = books.map((b,i) => `
+    <tr class="${b.copies===0?'out-of-stock':''}">
+      ${numbered ? `<td class="mono">${String(i+1).padStart(2,'0')}</td>` : ''}
+      <td>${b.name}</td>
+      <td style="color:var(--text2)">${b.author}</td>
+      <td><span class="badge-pill pill-blue">${b.category}</span></td>
+      <td class="mono">${b.copies}</td>
+      <td>${statusPill(b.copies)}</td>
+    </tr>`).join('');
+}
+
+function addBook() {
+  const name = document.getElementById('add-name').value.trim();
+  const author = document.getElementById('add-author').value.trim();
+  const cat = document.getElementById('add-cat').value;
+  const copies = parseInt(document.getElementById('add-copies').value);
+  if (!name || !author || isNaN(copies) || copies < 1) { toast('Please fill all fields correctly.', 'var(--accent4)'); return; }
+  books.push({ id: nextId++, name, author, category: cat, total: copies, copies, issued: 0 });
+  document.getElementById('add-name').value = '';
+  document.getElementById('add-author').value = '';
+  document.getElementById('add-copies').value = '';
+  document.getElementById('add-alert').classList.add('show');
+  setTimeout(() => document.getElementById('add-alert').classList.remove('show'), 3000);
+  renderAll();
+  toast(`"${name}" added to catalog.`);
+}
+
+function populateSelect(id) {
+  document.getElementById(id).innerHTML = books
+    .map(b => `<option value="${b.id}">${b.name} — ${b.author} (${b.copies} available)</option>`)
+    .join('');
+}
+function issueBook() {
+  const id = parseInt(document.getElementById('issue-select').value);
+  const borrower = document.getElementById('issue-borrower').value.trim();
+  if (!borrower) { toast('Please enter borrower name.', 'var(--accent4)'); return; }
+  const book = books.find(b => b.id === id);
+  clearAlerts();
+  if (!book || book.copies === 0) {
+    document.getElementById('issue-alert-err').classList.add('show');
+  } else {
+    book.copies--; book.issued++;
+    document.getElementById('issue-ok-msg').textContent = `"${book.name}" issued to ${borrower}. ${book.copies} copies remain.`;
+    document.getElementById('issue-alert-ok').classList.add('show');
+    populateSelect('issue-select');
+    renderAll();
+    toast(`Issued to ${borrower}.`);
+  }
+}
+function returnBook() {
+  const id = parseInt(document.getElementById('return-select').value);
+  const borrower = document.getElementById('return-borrower').value.trim();
+  if (!borrower) { toast('Please enter borrower name.', 'var(--accent4)'); return; }
+  const book = books.find(b => b.id === id);
+  clearAlerts();
+  book.copies++;
+  if (book.issued > 0) book.issued--;
+  document.getElementById('return-ok-msg').textContent = `"${book.name}" returned by ${borrower}. ${book.copies} copies now available.`;
+  document.getElementById('return-alert').classList.add('show');
+  populateSelect('return-select');
+  renderAll();
+  toast('Return processed.', 'var(--accent2)');
+}
+
+function renderReports() {
+  const s = calcStats();
+  document.getElementById('rep-total').textContent = s.total;
+  document.getElementById('rep-avail').textContent = s.avail;
+  document.getElementById('rep-issued').textContent = s.issued;
+  document.getElementById('rep-oos').textContent = s.oos;
+  document.querySelector('#rep-table tbody').innerHTML = books.map(b => `
+    <tr class="${b.copies===0?'out-of-stock':''}">
+      <td>${b.name}</td>
+      <td style="color:var(--text2)">${b.author}</td>
+      <td class="mono">${b.total}</td>
+      <td class="mono">${b.copies}</td>
+      <td class="mono">${b.issued}</td>
+      <td>${statusPill(b.copies)}</td>
+    </tr>`).join('');
+}
+</script>
+</body>
+</html>
