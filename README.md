@@ -4,10 +4,15 @@ A web-based application designed to manage library activities such as book track
 
 🚀 Features
 📖 Book issue and return system
+
 🔄 Real-time stock updates
+
 🔐 User login functionality
+
 📊 Interactive dashboard with sidebar navigation
+
 📱 Responsive design
+
 🛠️ Tech Stack
 HTML
 CSS
